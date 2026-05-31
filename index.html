@@ -1245,6 +1245,14 @@
       inputPomodoros: { key: 'pomodorosBeforeLong', min: 2, max: 10 }
     };
 
+    const SETTING_TO_MODE = {
+      inputFocus: 'focus',
+      inputShort: 'short',
+      inputLong: 'long'
+    };
+
+    const DURATION_RESET_CONFIRM = '修改时长将从头开始计时，确定继续吗？';
+
     const TIMER_PARTICLE_COLORS = {
       focus: '#FFB4A2',
       short: '#7CFFB2',
@@ -1515,11 +1523,42 @@
       $inputParticles.checked = state.settings.particles !== false;
     }
 
-    function applySettingValue(id, value, options = {}) {
+    function applyDurationSetting(id, value, options = {}) {
       const config = SETTING_CONTROLS[id];
       const input = document.getElementById(id);
-      const previousTotalTime = state.totalTime;
-      const previousTimeLeft = state.timeLeft;
+      const trimmed = String(value).trim();
+      const parsed = parseInt(trimmed, 10);
+      const hadNumericInput = trimmed !== '' && Number.isFinite(parsed);
+      const next = clamp(hadNumericInput ? parsed : config.min, config.min, config.max);
+      const previous = state.settings[config.key];
+
+      if (previous === next && String(input.value) === String(next)) {
+        return;
+      }
+
+      if (options.notifyClamp && hadNumericInput && parsed !== next) {
+        showToast('已调整为 ' + next + '（范围 ' + config.min + '–' + config.max + '）');
+      }
+
+      if (hasTimerProgress() && !confirm(DURATION_RESET_CONFIRM)) {
+        input.value = previous;
+        return;
+      }
+
+      state.settings[config.key] = next;
+      input.value = next;
+      setMode(SETTING_TO_MODE[id]);
+      updatePomodoroDots();
+    }
+
+    function applySettingValue(id, value, options = {}) {
+      if (SETTING_TO_MODE[id]) {
+        applyDurationSetting(id, value, options);
+        return;
+      }
+
+      const config = SETTING_CONTROLS[id];
+      const input = document.getElementById(id);
       const trimmed = String(value).trim();
       const parsed = parseInt(trimmed, 10);
       const hadNumericInput = trimmed !== '' && Number.isFinite(parsed);
@@ -1535,15 +1574,6 @@
 
       input.value = next;
       state.settings[config.key] = next;
-
-      const modeForSetting = { inputFocus: 'focus', inputShort: 'short', inputLong: 'long' }[id];
-      if (modeForSetting === state.mode) {
-        const elapsed = Math.max(0, previousTotalTime - previousTimeLeft);
-        state.totalTime = state.settings[state.mode] * 60;
-        state.timeLeft = Math.max(0, state.totalTime - elapsed);
-        updateDisplay(true);
-      }
-
       updatePomodoroDots();
       saveState();
     }
@@ -1853,6 +1883,10 @@
     $btnReset.addEventListener('click', reset);
 
     $btnSettings.addEventListener('click', () => {
+      if (state.running) {
+        showToast('请先暂停计时器');
+        return;
+      }
       $settingsPanel.classList.add('open');
       $overlay.classList.add('active');
     });
