@@ -1515,12 +1515,24 @@
       $inputParticles.checked = state.settings.particles !== false;
     }
 
-    function applySettingValue(id, value) {
+    function applySettingValue(id, value, options = {}) {
       const config = SETTING_CONTROLS[id];
       const input = document.getElementById(id);
       const previousTotalTime = state.totalTime;
       const previousTimeLeft = state.timeLeft;
-      const next = clamp(parseInt(value, 10) || config.min, config.min, config.max);
+      const trimmed = String(value).trim();
+      const parsed = parseInt(trimmed, 10);
+      const hadNumericInput = trimmed !== '' && Number.isFinite(parsed);
+      const next = clamp(hadNumericInput ? parsed : config.min, config.min, config.max);
+
+      if (state.settings[config.key] === next && String(input.value) === String(next)) {
+        return;
+      }
+
+      if (options.notifyClamp && hadNumericInput && parsed !== next) {
+        showToast('已调整为 ' + next + '（范围 ' + config.min + '–' + config.max + '）');
+      }
+
       input.value = next;
       state.settings[config.key] = next;
 
@@ -1616,13 +1628,18 @@
         });
 
         input.addEventListener('change', function() {
-          applySettingValue(id, this.value);
+          if (this.dataset.skipNextChange === 'true') {
+            this.dataset.skipNextChange = '';
+            return;
+          }
+          applySettingValue(id, this.value, { notifyClamp: true });
         });
 
         input.addEventListener('keydown', e => {
           if (e.key === 'Enter') {
             e.preventDefault();
-            applySettingValue(id, e.target.value);
+            e.target.dataset.skipNextChange = 'true';
+            applySettingValue(id, e.target.value, { notifyClamp: true });
             e.target.blur();
           }
         });
