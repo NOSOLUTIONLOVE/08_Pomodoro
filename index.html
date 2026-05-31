@@ -534,7 +534,7 @@
       width: 68px;
       height: 38px;
       padding: 8px 10px;
-      cursor: default;
+      cursor: text;
     }
 
     .settings-toggle {
@@ -1044,7 +1044,7 @@
         </div>
         <div class="settings-stepper" data-setting="inputFocus">
           <button class="stepper-btn" type="button" aria-label="减少专注时长" data-stepper="inputFocus" data-dir="-">−</button>
-          <input type="text" inputmode="numeric" readonly class="settings-input" id="inputFocus" min="1" max="90" value="25" aria-label="专注时长" />
+          <input type="text" inputmode="numeric" class="settings-input" id="inputFocus" min="1" max="90" value="25" aria-label="专注时长" />
           <button class="stepper-btn" type="button" aria-label="增加专注时长" data-stepper="inputFocus" data-dir="+">+</button>
         </div>
       </div>
@@ -1055,7 +1055,7 @@
         </div>
         <div class="settings-stepper" data-setting="inputShort">
           <button class="stepper-btn" type="button" aria-label="减少短休息时长" data-stepper="inputShort" data-dir="-">−</button>
-          <input type="text" inputmode="numeric" readonly class="settings-input" id="inputShort" min="1" max="30" value="5" aria-label="短休息时长" />
+          <input type="text" inputmode="numeric" class="settings-input" id="inputShort" min="1" max="30" value="5" aria-label="短休息时长" />
           <button class="stepper-btn" type="button" aria-label="增加短休息时长" data-stepper="inputShort" data-dir="+">+</button>
         </div>
       </div>
@@ -1066,7 +1066,7 @@
         </div>
         <div class="settings-stepper" data-setting="inputLong">
           <button class="stepper-btn" type="button" aria-label="减少长休息时长" data-stepper="inputLong" data-dir="-">−</button>
-          <input type="text" inputmode="numeric" readonly class="settings-input" id="inputLong" min="1" max="60" value="15" aria-label="长休息时长" />
+          <input type="text" inputmode="numeric" class="settings-input" id="inputLong" min="1" max="60" value="15" aria-label="长休息时长" />
           <button class="stepper-btn" type="button" aria-label="增加长休息时长" data-stepper="inputLong" data-dir="+">+</button>
         </div>
       </div>
@@ -1077,7 +1077,7 @@
         </div>
         <div class="settings-stepper" data-setting="inputPomodoros">
           <button class="stepper-btn" type="button" aria-label="减少长休息间隔" data-stepper="inputPomodoros" data-dir="-">−</button>
-          <input type="text" inputmode="numeric" readonly class="settings-input" id="inputPomodoros" min="2" max="10" value="4" aria-label="番茄后长休息" />
+          <input type="text" inputmode="numeric" class="settings-input" id="inputPomodoros" min="2" max="10" value="4" aria-label="番茄后长休息" />
           <button class="stepper-btn" type="button" aria-label="增加长休息间隔" data-stepper="inputPomodoros" data-dir="+">+</button>
         </div>
       </div>
@@ -1603,6 +1603,32 @@
       window.addEventListener('pointerup', stopStepperHold);
     }
 
+    function setupSettingInputs() {
+      Object.keys(SETTING_CONTROLS).forEach(id => {
+        const input = document.getElementById(id);
+
+        input.addEventListener('focus', function() {
+          this.select();
+        });
+
+        input.addEventListener('input', function() {
+          this.value = this.value.replace(/\D/g, '');
+        });
+
+        input.addEventListener('change', function() {
+          applySettingValue(id, this.value);
+        });
+
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            applySettingValue(id, e.target.value);
+            e.target.blur();
+          }
+        });
+      });
+    }
+
     function start() {
       if (state.running) {
         state.running = false;
@@ -1830,12 +1856,6 @@
     document.getElementById('statsClose').addEventListener('click', closePanels);
     $overlay.addEventListener('click', closePanels);
 
-    Object.keys(SETTING_CONTROLS).forEach(id => {
-      document.getElementById(id).addEventListener('change', function() {
-        applySettingValue(id, this.value);
-      });
-    });
-
     $inputParticles.addEventListener('change', function() {
       state.settings.particles = this.checked;
       saveState();
@@ -1869,6 +1889,7 @@
     loadState();
     syncSettingsInputs();
     setupStepperControls();
+    setupSettingInputs();
     createParticles();
     state.timeLeft = state.settings.focus * 60;
     state.totalTime = state.settings.focus * 60;
